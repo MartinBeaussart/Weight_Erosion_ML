@@ -2,7 +2,7 @@ from torchvision import datasets, transforms
 import torch
 import math
 
-def getLoader(num_clients,batch_size,homogeneity,distribution,selected_agent_index):
+def get_iid_loader(num_clients,batch_size):
     if homogeneity:
         traindata = datasets.MNIST('./data', train=True, download=True,transform=transforms.Compose([transforms.ToTensor(),transforms.Normalize((0.1307,), (0.3081,))]))
         traindata_split = torch.utils.data.random_split(traindata, [int(traindata.data.shape[0] / num_clients) for _ in range(num_clients)])
@@ -10,56 +10,56 @@ def getLoader(num_clients,batch_size,homogeneity,distribution,selected_agent_ind
         test_loader = torch.utils.data.DataLoader(datasets.MNIST('./data', train=False, transform=transforms.Compose([transforms.ToTensor(),transforms.Normalize((0.1307,),(0.3081,))])), batch_size=batch_size, shuffle=True)
 
         return train_loader, test_loader
-    else:
-        traindata = datasets.MNIST('./data', train=True, download=True,transform=transforms.Compose([transforms.ToTensor(),transforms.Normalize((0.1307,), (0.3081,))]))
-        testdata = datasets.MNIST('./data', train=False, download=True,transform=transforms.Compose([transforms.ToTensor(),transforms.Normalize((0.1307,), (0.3081,))]))
 
-        target_labels = torch.stack([traindata.targets == i for i in range(10)])
-        target_labels_test = torch.stack([testdata.targets == i for i in range(10)])
-        target_labels_split = []
-        target_labels_split_test = []
+def get_non_iid_loader_distribution(num_clients,batch_size,distribution,selected_agent_index):
+    traindata = datasets.MNIST('./data', train=True, download=True,transform=transforms.Compose([transforms.ToTensor(),transforms.Normalize((0.1307,), (0.3081,))]))
+    testdata = datasets.MNIST('./data', train=False, download=True,transform=transforms.Compose([transforms.ToTensor(),transforms.Normalize((0.1307,), (0.3081,))]))
 
-        #divide each target labels in small samples
-        target_label_division = 100 #need to check if with this number we have len(target_labels_split) = 10 * target_label_division
-        for i in range(10):
-            target_labels_data =torch.where(target_labels[i])[0]
+    target_labels = torch.stack([traindata.targets == i for i in range(10)])
+    target_labels_test = torch.stack([testdata.targets == i for i in range(10)])
+    target_labels_split = []
+    target_labels_split_test = []
 
-            target_labels_split += torch.split(target_labels_data, int((len(target_labels_data)) / (target_label_division-1)))
-            target_labels_split_test += torch.split(torch.where(target_labels_test[i%10])[0], int((len(torch.where(target_labels_test[i])[0]))))
+    #divide each target labels in small samples
+    target_label_division = 100 #need to check if with this number we have len(target_labels_split) = 10 * target_label_division
+    for i in range(10):
+        target_labels_data =torch.where(target_labels[i])[0]
 
-            target_labels_split = target_labels_split[:target_label_division*(i+1)] #remove when the split not givin you target_label_division samples but target_label_division +1 samples
+        target_labels_split += torch.split(target_labels_data, int((len(target_labels_data)) / (target_label_division-1)))
+        target_labels_split_test += torch.split(torch.where(target_labels_test[i%10])[0], int((len(torch.where(target_labels_test[i])[0]))))
 
-        #merge selected samples in each client
-        distribution = [target_label_division * x / (max(num_clients,10)/10) for x in distribution]
-        samples_used = [0,0,0,0,0,0,0,0,0,0]
-        next_samples_used = [0,0,0,0,0,0,0,0,0,0]
-        split_client = []
-        test_data = torch.tensor([],dtype=torch.long)
+        target_labels_split = target_labels_split[:target_label_division*(i+1)] #remove when the split not givin you target_label_division samples but target_label_division +1 samples
 
-        for i in range(num_clients):
-            split_client.append(torch.tensor([],dtype=torch.long))
-            for n in range(10):
-                next_samples_used[n] = samples_used[n] + distribution[n]
-            distribution = distribution[1:] + distribution[:1] # shift to left
+    #merge selected samples in each client
+    distribution = [target_label_division * x / (max(num_clients,10)/10) for x in distribution]
+    samples_used = [0,0,0,0,0,0,0,0,0,0]
+    next_samples_used = [0,0,0,0,0,0,0,0,0,0]
+    split_client = []
+    test_data = torch.tensor([],dtype=torch.long)
 
-            for number in range(10):
-                if i == selected_agent_index and samples_used[number] < next_samples_used[number]:
-                    test_data = torch.cat((test_data, target_labels_split_test[number]),0)
+    for i in range(num_clients):
+        split_client.append(torch.tensor([],dtype=torch.long))
+        for n in range(10):
+            next_samples_used[n] = samples_used[n] + distribution[n]
+        distribution = distribution[1:] + distribution[:1] # shift to left
 
-                while samples_used[number] < next_samples_used[number]:
-                    split_client[i] = torch.cat((split_client[i], target_labels_split[number*target_label_division+samples_used[number]]),0)
-                    samples_used[number] += 1
+        for number in range(10):
+            if i == selected_agent_index and samples_used[number] < next_samples_used[number]:
+                test_data = torch.cat((test_data, target_labels_split_test[number]),0)
 
-                if samples_used[number] > next_samples_used[number]:
-                    samples_used[number] -= 1
+            while samples_used[number] < next_samples_used[number]:
+                split_client[i] = torch.cat((split_client[i], target_labels_split[number*target_label_division+samples_used[number]]),0)
+                samples_used[number] += 1
 
-        traindata_split = [torch.utils.data.Subset(traindata, tl) for tl in split_client]
-        testdata_split = torch.utils.data.Subset(testdata, test_data)
-        train_loader = [torch.utils.data.DataLoader(x, batch_size=batch_size, shuffle=True) for x in traindata_split]
-        test_loader = torch.utils.data.DataLoader(testdata_split, batch_size=batch_size, shuffle=True)
+            if samples_used[number] > next_samples_used[number]:
+                samples_used[number] -= 1
 
-        return train_loader, test_loader
+    traindata_split = [torch.utils.data.Subset(traindata, tl) for tl in split_client]
+    testdata_split = torch.utils.data.Subset(testdata, test_data)
+    train_loader = [torch.utils.data.DataLoader(x, batch_size=batch_size, shuffle=True) for x in traindata_split]
+    test_loader = torch.utils.data.DataLoader(testdata_split, batch_size=batch_size, shuffle=True)
 
+    return train_loader, test_loader
 
 def get_specific_non_IID_loader(num_clients,batch_size,homogeneity):
 

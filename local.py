@@ -13,15 +13,15 @@ def runLocal(train_loader,test_loader,num_clients,batch_size,selected_agent_inde
 
     opt = [optim.SGD(model.parameters(), lr=0.1) for model in client_models]
 
-    grad_vector = [None for _ in range(num_clients)]
+    grad_vector = 0
     weight_vector = np.ones(num_clients)
 
     # client update
-    loss = np.zeros(num_clients)
-    for i in range(num_clients):
-        print('%d-th Client' % i)
-        loss_tmp, grad_vector[i] = client_update(client_models[i], opt[i], train_loader[i], epoch=epochs)
-        loss[i] = loss_tmp
+    loss = 0
+
+    print('%d-th Client' % selected_agent_index)
+    loss_tmp, grad_vector = client_update(client_models[selected_agent_index], opt[selected_agent_index], train_loader[selected_agent_index], epoch=epochs)
+    loss = loss_tmp
 
     # Evalutate on the global test set (for now)
     test_loss, acc = evaluate(client_models[selected_agent_index], test_loader)

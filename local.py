@@ -28,3 +28,8 @@ def runLocal(train_loader,test_loader,num_clients,batch_size,selected_agent_inde
 
     print(f"Loss   : {loss}")
     print('Test loss %0.3g | Test acc: %0.3f\n' % (test_loss, acc))
+
+    acc_best = acc
+    round_best = epochs
+    weight_best = [1,0,0,0,0,0,0,0,0,0]
+    return [acc_best, round_best, weight_best]

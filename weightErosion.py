@@ -1,12 +1,15 @@
 from functions import *
 
-distance_penalty = 0.05
-size_penalty = 2
-
 def runWeightErosion(train_loader,test_loader,num_clients,batch_size,selected_agent_index,num_rounds,epochs):
+
+    distance_penalty = 0.1/num_clients
+    size_penalty = 2
 
     print("=== Weight Erosion ===")
     np.set_printoptions(precision=3)
+    acc_best = 0
+    round_best = 0
+    weight_best = [0.1,0,0,0,0,0,0,0,0,0]
 
     # Instantiate models and optimizers
     shared_model = Net().cuda()
@@ -46,3 +49,10 @@ def runWeightErosion(train_loader,test_loader,num_clients,batch_size,selected_ag
         print(f"Weight : {weight_vector}")
         print(f"Loss   : {loss}")
         print('Test loss %0.3g | Test acc: %0.3f \n' % (test_loss, acc))
+
+        if acc > acc_best:
+            acc_best = acc
+            round_best = r+1
+            weight_best = weight_vector
+
+    return [acc_best, round_best, weight_best]

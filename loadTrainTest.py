@@ -42,7 +42,8 @@ def get_non_iid_loader_distribution(num_clients,batch_size,distribution,selected
         split_client.append(torch.tensor([],dtype=torch.long))
         for n in range(10):
             next_samples_used[n] = samples_used[n] + distribution[n]
-
+        distribution = distribution[1:] + distribution[:1] # shift to left
+        
         for number in range(10):
 
             #add data to test
@@ -57,12 +58,10 @@ def get_non_iid_loader_distribution(num_clients,batch_size,distribution,selected
                 split_client[i] = torch.cat((split_client[i], target_labels_split[number*target_label_division+samples_used[number]]),0)
                 samples_used[number] += 1
 
-
-
             if samples_used[number] > next_samples_used[number]:
                 samples_used[number] -= 1
 
-            distribution = distribution[1:] + distribution[:1] # shift to left
+
 
     traindata_split = [torch.utils.data.Subset(traindata, tl) for tl in split_client]
     testdata_split = torch.utils.data.Subset(testdata, test_data)

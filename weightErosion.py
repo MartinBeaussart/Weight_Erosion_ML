@@ -1,9 +1,11 @@
 from functions import *
+import pickle
 
-def runWeightErosion(train_loader,test_loader,num_clients,batch_size,selected_agent_index,num_rounds,epochs):
+def runWeightErosion(train_loader,test_loader,num_clients,batch_size,selected_agent_index,num_rounds,epochs,distribution):
 
     distance_penalty = 0.1/num_clients
     size_penalty = 2
+    dataPickle = []
 
     print("=== Weight Erosion ===")
     np.set_printoptions(precision=3)
@@ -49,10 +51,14 @@ def runWeightErosion(train_loader,test_loader,num_clients,batch_size,selected_ag
         print(f"Weight : {weight_vector}")
         print(f"Loss   : {loss}")
         print('Test loss %0.3g | Test acc: %0.3f \n' % (test_loss, acc))
+        dataPickle.append([acc,test_loss,loss[selected_agent_index],sum(weight_vector)/num_clients])
 
         if acc > acc_best:
             acc_best = acc
             round_best = r+1
             weight_best = weight_vector
+
+    with open("./data/weightErosion_"+str(num_clients)+"-"+str(distribution)+"_m.pickle", 'wb') as f:
+        pickle.dump(dataPickle, f)
 
     return [acc_best, round_best, weight_best]

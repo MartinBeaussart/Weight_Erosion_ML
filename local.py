@@ -1,9 +1,11 @@
 from functions import *
+import pickle
 
-def runLocal(train_loader,test_loader,num_clients,batch_size,selected_agent_index,epochs):
+def runLocal(train_loader,test_loader,num_clients,batch_size,selected_agent_index,epochs,distribution):
 
     print("=== Local ===")
     np.set_printoptions(precision=3)
+    dataPickle = []
 
     # Instantiate models and optimizers
     shared_model = Net().cuda()
@@ -28,8 +30,13 @@ def runLocal(train_loader,test_loader,num_clients,batch_size,selected_agent_inde
 
     print(f"Loss   : {loss}")
     print('Test loss %0.3g | Test acc: %0.3f\n' % (test_loss, acc))
+    dataPickle.append([acc,test_loss,loss])
 
     acc_best = acc
     round_best = epochs
     weight_best = [1,0,0,0,0,0,0,0,0,0]
+
+    with open("./data/local_"+str(num_clients)+"-"+str(distribution)+"_m.pickle", 'wb') as f:
+        pickle.dump(dataPickle, f)
+
     return [acc_best, round_best, weight_best]

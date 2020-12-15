@@ -16,6 +16,7 @@ batch_size = 32
 
 #distributions = [[0,0,0,0,0.2,0.6,0.2,0,0,0],[0,0,0,0.1,0.2,0.4,0.2,0.1,0,0],[0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1],[0,0,0,0.4,0.1,0,0.1,0.4,0,0]]
 distributions = [[0,0,0.1,0.1,0.2,0.2,0.2,0.1,0.1,0]]
+distributions = [[0,0,0,0,0.2,0.6,0.2,0,0,0]]
 #0.01 = [0.91, 0.1, 0.1 etc..]
 #0 = [0.25 * 4 + 0 * 6]
 
@@ -30,19 +31,19 @@ for distribution in distributions:
 
         cumulator = base.Cumulator()
         cumulator.on()
-        dataPickle.append(runWeightErosion(train_loader,test_loader,num_clients,batch_size,selected_agent_index,num_rounds,epochs))
+        dataPickle.append(runWeightErosion(train_loader,test_loader,num_clients,batch_size,selected_agent_index,num_rounds,epochs,distribution[5]))
         cumulator.off()
         print('The total carbon footprint for these computations is : ',cumulator.total_carbon_footprint())
 
         cumulator = base.Cumulator()
         cumulator.on()
-        dataPickle.append(runFederated(train_loader,test_loader,num_clients,batch_size,selected_agent_index,num_rounds,epochs))
+        dataPickle.append(runFederated(train_loader,test_loader,num_clients,batch_size,selected_agent_index,num_rounds,epochs,distribution[5]))
         cumulator.off()
         print('The total carbon footprint for these computations is : ',cumulator.total_carbon_footprint())
 
         cumulator = base.Cumulator()
         cumulator.on()
-        dataPickle.append(runLocal(train_loader,test_loader,num_clients,batch_size,selected_agent_index,num_rounds*epochs))
+        dataPickle.append(runLocal(train_loader,test_loader,num_clients,batch_size,selected_agent_index,num_rounds*epochs,distribution[5]))
         cumulator.off()
         print('The total carbon footprint for these computations is : ',cumulator.total_carbon_footprint())
 

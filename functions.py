@@ -7,7 +7,7 @@ from torchvision import datasets, transforms
 import numpy as np
 from tqdm import tqdm
 
-
+# Define the CNN we are using for our task
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
@@ -32,6 +32,8 @@ class Net(nn.Module):
         return output
 
 
+# This class represents the gradient for on NN model. Keeping Gradient for each layer distinctly stored.
+# It also allows us to compute easily the relative distance between the gradient of two agents for Weight Erosion.
 class GradientStocker:
     def __init__(self, model_names):
         for item in model_names:
@@ -62,7 +64,6 @@ def client_update(client_model, optimizer, train_loader, epoch=5):
     for name, param in client_model.named_parameters():
         model_names.append(name)
     gradient_stocker = GradientStocker(model_names)
-
     for e in range(epoch):
         for batch_idx, (data, target) in enumerate(train_loader):
             data, target = data.cuda(), target.cuda()
@@ -91,18 +92,20 @@ def weighted_average_from_key(key, gradients, weights):
     return n / d
 
 def compute_weight(alpha_prev, round, relative_distance, data_size, batch_size, distance_penalty, size_penalty):
-    """Computes the weight alpha for round r"""
+    """ Computes the weight alpha for round r """
     size_factor = (1 + size_penalty * math.floor(((round - 1) * batch_size) / data_size))
     distance_factor = distance_penalty * relative_distance
     alpha = alpha_prev - size_factor * distance_factor
     return max(0,alpha)
 
-def update_grad(model, gradient, alpha):
+def update_grad(model, gradient, alpha): 
+    """ Update the gradient for all parameters"""
     for name, param in model.named_parameters():
         param.data -= gradient[name].cuda() * alpha
     return model
 
 def share_weight_erosion_model(shared_model, client_models):
+    """ Share the computed model with all agents"""
     for model in client_models:
         model.load_state_dict(shared_model.state_dict())
 

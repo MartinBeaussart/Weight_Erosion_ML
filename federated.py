@@ -1,7 +1,11 @@
 from functions import *
 import pickle
+from pathlib import Path
 
-def runFederated(train_loader,test_loader,num_clients,batch_size,selected_agent_index,num_rounds,epochs,distribution):
+# === Run our model training using the Federated Average aggregation scheme === #
+
+def run_federated(train_loader, test_loader, num_clients,batch_size,
+                  selected_agent_index, num_rounds, epochs, distribution, distribution_name='distribution'):
 
     print("=== Federated ===")
     np.set_printoptions(precision=3)
@@ -40,18 +44,22 @@ def runFederated(train_loader,test_loader,num_clients,batch_size,selected_agent_
         # Share model to all agents
         share_weight_erosion_model(shared_model, client_models)
 
-        # Evalutate on the global test set (for now)
+        # Evalutate on the agent's test set
         test_loss, acc = evaluate(shared_model, test_loader)
 
         print(f"Loss   : {loss}")
         print('Test loss %0.3g | Test acc: %0.3f\n' % (test_loss, acc))
+
+        # Keep the accuracy for each round
         dataPickle.append([acc,test_loss,loss[selected_agent_index]])
 
+        # Update the best accuracy
         if acc > acc_best:
             acc_best = acc
             round_best = r+1
             weight_best = weight_vector
 
-    with open("./data/federated_"+str(num_clients)+"-"+str(distribution)+"_m.pickle", 'wb') as f:
+    with open(Path.cwd()/'generated'/'pickles'/f'federated_{num_clients}_{distribution_name}.pickle', 'wb') as f:
         pickle.dump(dataPickle, f)
+
     return [acc_best, round_best, weight_best]

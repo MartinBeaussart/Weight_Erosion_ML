@@ -7,8 +7,11 @@ from torchvision import datasets, transforms
 import numpy as np
 from tqdm import tqdm
 
-# Define the CNN we are using for our task
 class Net(nn.Module):
+    """
+    This class, subclass of nn.module, represents the neural network we're using for our task.
+    We use 3 convolutinnal layer and 2 functions in our model.
+    """
     def __init__(self):
         super(Net, self).__init__()
         self.conv1 = nn.Conv2d(1, 32, kernel_size=3, stride=2, padding=1)
@@ -32,17 +35,23 @@ class Net(nn.Module):
         return output
 
 
-# This class represents the gradient for on NN model. Keeping Gradient for each layer distinctly stored.
-# It also allows us to compute easily the relative distance between the gradient of two agents for Weight Erosion.
 class GradientStocker:
+    """
+    This class is the abstraction to store the different gradients of a neural network
+    As a neural networks has more than a unique gradient, we take the gradients of the loss function with respect to each weights and biases and store them in a dictionary.
+    We then use this abstraction to add values in the different gradients, to get the gradients value, and to compute the distance between `agent gradients' for Weight Erosion
+    """
     def __init__(self, model_names):
+        """Initialize the class by creating the entries in the dictionary"""
         for item in model_names:
             setattr(self, item, 0)
 
     def get_attributes(self):
+        """Returns the gradient's value and attributes"""
         return self.__dict__
 
     def add_gradient(self, model):
+        """Add a value to the already existing gradient        """
         for name, param in model.named_parameters():
             setattr(self, name, getattr(self, name) + param.grad.data.cpu())
 
@@ -59,7 +68,10 @@ class GradientStocker:
 
 
 def client_update(client_model, optimizer, train_loader, epoch=5):
-    """Train a client_model on the train_loder data."""
+    """
+    Train a client_model on the train_loader data.
+    We use local SGD for optimization purposes (Report - III) )
+    """
     model_names = []
     for name, param in client_model.named_parameters():
         model_names.append(name)
@@ -84,6 +96,7 @@ def weighted_average_gradients(gradients, weights):
     return weighted_averages
 
 def weighted_average_from_key(key, gradients, weights):
+    """Get the weighted average for the gradient of the key"""
     n = 0
     d = 0
     for idx, g_dict in enumerate(gradients) :
@@ -92,20 +105,23 @@ def weighted_average_from_key(key, gradients, weights):
     return n / d
 
 def compute_weight(alpha_prev, round, relative_distance, data_size, batch_size, distance_penalty, size_penalty):
-    """ Computes the weight alpha for round r """
+    """
+    Computes the weight alpha for round r
+    The mathematical formula is present in our report, section II equation (2)
+    """
     size_factor = (1 + size_penalty * math.floor(((round - 1) * batch_size) / data_size))
     distance_factor = distance_penalty * relative_distance
     alpha = alpha_prev - size_factor * distance_factor
     return max(0,alpha)
 
-def update_grad(model, gradient, alpha): 
-    """ Update the gradient for all parameters"""
+def update_grad(model, gradient, lr):
+    """ Perform a gradient descent for all the gradients"""
     for name, param in model.named_parameters():
-        param.data -= gradient[name].cuda() * alpha
+        param.data -= gradient[name].cuda() * lr
     return model
 
 def share_weight_erosion_model(shared_model, client_models):
-    """ Share the computed model with all agents"""
+    """Share the computed model with all agents"""
     for model in client_models:
         model.load_state_dict(shared_model.state_dict())
 

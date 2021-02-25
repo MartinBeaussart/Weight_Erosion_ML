@@ -6,12 +6,13 @@ from pathlib import Path
 
 def run_federated(train_loader, test_loader, num_clients,batch_size,
                   selected_agent_index, num_rounds, epochs, distribution, distribution_name='distribution'):
+    """This function implements federated average aggregation scheme for neural network. We used the same system as WE scheme, but we kept the weigh equal all the time"""
 
     print("=== Federated ===")
+    # We have to store the values corresponding to the best test score
     np.set_printoptions(precision=3)
     acc_best = 0
     round_best = 0
-    weight_best = [0.1,0,0,0,0,0,0,0,0,0]
     dataPickle = []
 
     # Instantiate models and optimizers
@@ -19,22 +20,20 @@ def run_federated(train_loader, test_loader, num_clients,batch_size,
     client_models = [Net().cuda() for _ in range(num_clients)]
     for model in client_models:
         model.load_state_dict(shared_model.state_dict())
-
     opt = [optim.SGD(model.parameters(), lr=0.1) for model in client_models]
 
+
     grad_vector = [None for _ in range(num_clients)]
-    weight_vector = np.ones(num_clients)
+    weight_vector = np.full(num_clients, 1/num_clients)
 
     for r in range(num_rounds):
 
         print('%d-th round' % r)
 
-        # client update
+        # Client update
         loss = np.zeros(num_clients)
         for i in range(num_clients):
-            loss_tmp, grad_vector[i] = client_update(client_models[i], opt[i], train_loader[i], epoch=epochs)
-            loss[i] = loss_tmp
-            weight_vector[i] = 1/num_clients
+            loss[i], grad_vector[i] = client_update(client_models[i], opt[i], train_loader[i], epoch=epochs)
 
 
         # Weight Erosion Scheme
@@ -47,8 +46,8 @@ def run_federated(train_loader, test_loader, num_clients,batch_size,
         # Evalutate on the agent's test set
         test_loss, acc = evaluate(shared_model, test_loader)
 
-        print(f"Loss   : {loss}")
-        print('Test loss %0.3g | Test acc: %0.3f\n' % (test_loss, acc))
+        print(f'Loss   : {loss}')
+        print(f'Test loss {test_loss:.3f} | Test acc: {acc:.3f} \n')
 
         # Keep the accuracy for each round
         dataPickle.append([acc,test_loss,loss[selected_agent_index]])
@@ -57,9 +56,9 @@ def run_federated(train_loader, test_loader, num_clients,batch_size,
         if acc > acc_best:
             acc_best = acc
             round_best = r+1
-            weight_best = weight_vector
 
-    with open(Path.cwd()/'generated'/'pickles'/f'federated_{num_clients}_{distribution_name}.pickle', 'wb') as f:
+    # Stores the important informations for each round in a pickle file
+    with open("./generated/pickles/federated_"+str(num_clients)+"-"+distribution_name+".pickle", 'wb') as f:
         pickle.dump(dataPickle, f)
 
-    return [acc_best, round_best, weight_best]
+    return [acc_best, round_best]
